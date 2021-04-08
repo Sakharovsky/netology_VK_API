@@ -5,17 +5,30 @@ import time
 import json
 
 
+def vk_id(access_token, user_id=None):
+    url_vk = 'https://api.vk.com/method/users.get'
+    params = {'access_token': access_token, 'v': "5.130"}
+    if user_id is None:
+        user_id = requests.get(url_vk, params=params).json()['response'][0]['id']
+    if isinstance(user_id, str):
+        params.update({'user_ids': user_id})
+        res = requests.get(url_vk, params=params)
+        pprint.pprint(res.json())
+        user_id = res.json()['response'][0]['id']
+    
+    return user_id
+
+
 def get_vk_pics(access_token, user_id=None, numb_photos=5, album_id='profile'):
     """Возвращает список словарей с лайками, датой, параметрами размера и ссылкой на скачивание.
     Возвращает False, если произошла ошибка."""
     
-    url_vk = 'https://api.vk.com/method/'
+    url_vk = 'https://api.vk.com/method/photos.get'
     params = {'access_token': access_token, 'v': "5.130"}
-    if user_id is None:
-        user_id = requests.get(url_vk + 'users.get', params=params).json()['response'][0]['id']
+    
     params.update({'owner_id': user_id, 'album_id': album_id, 'count': numb_photos, 'rev': 1, 'extended': 1})
 
-    res = requests.get(url_vk + 'photos.get', params=params)
+    res = requests.get(url_vk, params=params)
 
     if res.status_code == 200 and 'error' not in res.json():
         pic_list = []
@@ -30,7 +43,7 @@ def get_vk_pics(access_token, user_id=None, numb_photos=5, album_id='profile'):
                              'Size height': size_height, 'Size width': size_width, 'Url': url})
         return pic_list
     else:
-        return False
+        return res.json()
 
 
 def folder_yad(yad_token, folder='VK_pics'):
@@ -108,14 +121,10 @@ def log_pics(pic_list):
 vk_token = input('Введите токен ВК: ')
 yad_token = input('Введите токен Яндекс Диск: ')
 
-vk_user = input('''Введите номер ID пользователя ВК 
-(оставьте пустым для выбора владельца токена): ''')
-if vk_user == '':
-    vk_user = None
-else:
-    vk_user = int(vk_user)
+vk_user = vk_id(vk_token, input('''Введите номер ID или screen_name пользователя ВК 
+(оставьте пустым для выбора владельца токена): '''))
 
-vk_album = input('''Введите название папки, откуда сохранять фотограции 
+vk_album = input('''Введите название папки VK, откуда сохранять фотографии 
 (оставьте пустым для выбора папки с фотографиями профиля): ''')
 if vk_album == '':
     vk_album = 'profile'
@@ -136,5 +145,3 @@ folder_yad(yad_token, folder=folder)
 vk_list = get_vk_pics(vk_token, user_id=vk_user, numb_photos=int(numb_pics), album_id=vk_album)
 yad_list = upload_yad(vk_list, yad_token, folder)
 log_pics(yad_list)
-
-
